@@ -1,5 +1,5 @@
 import {
-    DoCheck,
+    /* DoCheck, */
     NgModule,
     Directive,
     ElementRef,
@@ -18,7 +18,7 @@ import { CoverFlowOption } from './interface/cover-flow-option';
     selector: '[cover-flow]'
 })
 
-export class CoverFlow implements OnDestroy, OnInit, OnChanges, DoCheck {
+export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
 
     private _disabled: boolean;
 
@@ -73,15 +73,32 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges, DoCheck {
     }
     ngOnInit() : void {
         this.displayType = window.getComputedStyle(this.el.nativeElement).display;
-        this.el.nativeElement.style.display = this.displayType;
-        
+        this.initialize();
         this.markElDimension();
 
         this.renderer.setAttribute(this.el.nativeElement, 'cover-flow', 'true');
     }
-    ngDoCheck() : void {
+    private initialize() : void {
+        console.log('element initialize');
+
+        this.el.nativeElement.style.display = this.displayType;
+        this.el.nativeElement.style.perspective = '500px';
+        this.el.nativeElement.style.transformStyle = 'preserve-3d';
+
         this.childrenElements = this.el.nativeElement.children || [];
-    }
+        Array.from(this.el.nativeElement.children).map((e : HTMLDivElement) => {
+            e.style.position = 'absolute';
+            e.style.top = '0';
+            e.style.left = '0';
+            // e.style.opacity = '0';
+            e.style.width = '50px';
+            e.style.backgroundColor = '#eef';
+        });
+
+    }    
+    // ngDoCheck() : void {
+
+    // }
     ngOnDestroy() : void {
         this.renderer.setAttribute(this.el.nativeElement, 'cover-flow', 'false');
         this.mouseMoveListener();
