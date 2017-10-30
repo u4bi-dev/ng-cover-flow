@@ -1,4 +1,7 @@
 .cover-flow-wrapper{
-    border: 1px solid red;
-    height: 50px;
+    height: 200px;
+}
+
+.cover-flow-wrapper div{
+    background-color: #ff00ff;
 }
