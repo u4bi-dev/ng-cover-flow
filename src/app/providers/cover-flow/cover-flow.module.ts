@@ -90,9 +90,17 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
         this.renderer.setAttribute(this.el.nativeElement, 'cover-flow', 'true');
     }
     private initialize() : void {
-        this._xform = 'webkitTransform';
+        this._xform = 'transform';
 
-        // window.onresize = scroll;
+        ['webkit', 'Moz', 'O', 'ms'].every( (prefix) => {
+            let e = prefix + 'Transform';
+            if (typeof document.body.style[e] !== 'undefined') {
+                this._xform = e;
+                return false;
+            }
+            return true;
+        });
+
         this._pressed = false;
         this.displayType = 'block';
 

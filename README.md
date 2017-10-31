@@ -46,6 +46,14 @@ class Sample {}
 ```
 That's it!
 
+## API REFERENCE
+
+| Name                   | Type    | Description                                                                   |Default|
+|------------------------|---------|--------------------------------------------------------------------------------|-------|
+| cover-flow-disabled   | @Input  | all coverflow scrolling events is disabled. | false |
+
+___
+
 # Todo
 > - [x] auto move scrolling<br>
 > - [x] responsive sizing
