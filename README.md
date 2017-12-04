@@ -1,6 +1,6 @@
 # ng-cover-flow
 
-![Alt text](https://drive.google.com/uc?export=view&id=0B3XkfYbZArSfa3NodXo4OWhfcms)
+![Alt text](cover-flow-beta.gif)
 
 # Install
 ```shell

@@ -21,35 +21,27 @@ import { CoverFlowOption } from './interface/cover-flow-option';
 export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
 
     private _disabled: boolean;
-
-    /* cover */
-    _count;
-    _children;
-    _dim;
-    _offset;
-    _center;
-    _angle;
-    _dist;
-    _shift;
-    _pressed;
-    _reference;
-    _amplitude;
-    _target;
-    _velocity;
-    _timeConstant;
-    _xform;
-    _frame;
-    _timestamp;
-    _ticker;
-    /* -----  */
-
-    displayType : string;
-    wrapper : HTMLDivElement;
+    private isPressed : boolean;
+    private targetFlowTime : number;
+    private targetOffset : number;
+    private targetCenter : number;
+    private targetAmplitude : number;
+    private targetVelocity : number;
+    private targetReference : number;
+    private targetTimestamp : number;
+    private targetFrame : number;
+    private targetTapTicker : any;
     
-    elWidth: string;
-    elHeight: string;
-
-    childrenElements: Array<Element> = [];
+    private elNodes: Array<Element> = [];
+    private elWidth: string;
+    private elHeight: string;
+    private elNodeLength : number;
+    private elForm: string;
+    private elOffset : number;
+    private elAngle : number;
+    private elNodeDistance : number;
+    private elSideNodeMargin : number;
+    private elCenterNodeMargin : number;
 
     @Input('cover-flow-disabled')
     get disabled() { return this._disabled; }
@@ -63,10 +55,7 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
     mouseDownListener: Function;
     mouseUpListener: Function;
 
-    constructor(
-        private el       : ElementRef,
-        private renderer : Renderer2
-    ){ }
+    constructor( private el : ElementRef, private renderer : Renderer2){ }
 
     public attach( { disabled } : CoverFlowOption){
         console.log('attach');
@@ -78,59 +67,56 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
     onResize(e) : void {
         this.scroll(e);
     }
-    ngOnChanges() : void {
-
-    }
+    ngOnChanges() : void {}
     ngOnInit() : void {
-        this.displayType = window.getComputedStyle(this.el.nativeElement).display;
-        this.initialize();
         this.markElDimension();
+        this.initialize();
         this.setupEvents();
 
         this.renderer.setAttribute(this.el.nativeElement, 'cover-flow', 'true');
-    }
-    private initialize() : void {
-        this._xform = 'transform';
+    }    
+    private markElDimension() : void {
+        this.elWidth = window.getComputedStyle(this.el.nativeElement).width;
+        this.elHeight = window.getComputedStyle(this.el.nativeElement).height;
+        this.elNodeLength = this.el.nativeElement.children.length;
 
-        ['webkit', 'Moz', 'O', 'ms'].every( (prefix) => {
-            let e = prefix + 'Transform';
-            if (typeof document.body.style[e] !== 'undefined') {
-                this._xform = e;
-                return false;
-            }
-            return true;
-        });
-
-        this._pressed = false;
-        this.displayType = 'block';
-
-        this._pressed = false;
-        this._timeConstant = 950;
-        this._dim = 200;
-        this._offset = this._target = 0;
-        this._angle = -60;
-        this._dist = -150;
-        this._shift = 10;
-        this._count = 9;
-        this._children = [];
-        
-        this.el.nativeElement.style.display = this.displayType;
         this.el.nativeElement.style.perspective = '500px';
         this.el.nativeElement.style.transformStyle = 'preserve-3d';
-
-        this.childrenElements = this.el.nativeElement.children || [];
         Array.from(this.el.nativeElement.children).map((el : HTMLDivElement, index : number) => {
             el.style.position = 'absolute';
             el.style.top = '0';
             el.style.left = '0';
             el.style.opacity = '0';
-            el.style.width = '200px';
-            el.style.height = '200px';
-            this._children.push(el);
-
+            el.style.width = this.elHeight;
+            el.style.height = this.elHeight;
         });
+        this.elNodes = this.el.nativeElement.children || [];
+
+    }
+    private stylePrefix(){
+        this.elForm = 'transform';
+
+        ['webkit', 'Moz', 'O', 'ms'].every( (prefix) => {
+            let e = prefix + 'Transform';
+            if (typeof document.body.style[e] !== 'undefined') {
+                this.elForm = e;
+                return false;
+            }
+            return true;
+        });
+    }
+    private initialize() : void {
+        this.stylePrefix();
+        this.elSideNodeMargin = parseInt(this.elHeight.split('px')[0]);
+        this.elCenterNodeMargin = 10;
+        this.elNodeDistance = -150;
+        this.elAngle = -60;
+        this.targetOffset = this.elOffset = 0;
+        this.targetFlowTime = 950;
+
+        this.isPressed = false;
         
-        this.scroll(this._offset);
+        this.scroll(this.elOffset);
     }
     private setupEvents(){   
         this.mouseDownListener = this.renderer.listen(this.el.nativeElement, 'mousedown', this.onMouseDownHandler);
@@ -142,57 +128,57 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
         return e.clientX;
     }
     private wrap(x) {
-        return (x >= this._count) ? (x % this._count) : (x < 0) ? this.wrap(this._count + (x % this._count)) : x;
+        return (x >= this.elNodeLength) ? (x % this.elNodeLength) : (x < 0) ? this.wrap(this.elNodeLength + (x % this.elNodeLength)) : x;
     }
     private scroll(x) {
         let i, half, delta, dir, tween, el, alignment;
-        this._offset = (typeof x === 'number') ? x : this._offset;
-        this._center = Math.floor((this._offset + this._dim / 2) / this._dim);
-        delta = this._offset - this._center * this._dim;
+        this.elOffset = (typeof x === 'number') ? x : this.elOffset;
+        this.targetCenter = Math.floor((this.elOffset + this.elSideNodeMargin / 2) / this.elSideNodeMargin);
+        delta = this.elOffset - this.targetCenter * this.elSideNodeMargin;
         dir = (delta < 0) ? 1 : -1;
-        tween = -dir * delta * 2 / this._dim;
+        tween = -dir * delta * 2 / this.elSideNodeMargin;
 
-        alignment = 'translateX(' + (innerWidth - this._dim) / 2 + 'px) ';
-        // alignment += 'translateY(' + (innerHeight - this._dim) / 2 + 'px)';
+        alignment = 'translateX(' + (innerWidth - this.elSideNodeMargin) / 2 + 'px) ';
+        // alignment += 'translateY(' + (innerHeight - this.elSideNodeMargin) / 2 + 'px)';
 
         // center
-        el = this._children[this.wrap(this._center)];
-        el.style[this._xform] = alignment +
+        el = this.elNodes[this.wrap(this.targetCenter)];
+        el.style[this.elForm] = alignment +
             ' translateX(' + (-delta / 2) + 'px)' +
-            ' translateX(' + (dir * this._shift * tween) + 'px)' +
-            ' translateZ(' + (this._dist * tween) + 'px)' +
-            ' rotateY(' + (dir * this._angle * tween) + 'deg)';
+            ' translateX(' + (dir * this.elCenterNodeMargin * tween) + 'px)' +
+            ' translateZ(' + (this.elNodeDistance * tween) + 'px)' +
+            ' rotateY(' + (dir * this.elAngle * tween) + 'deg)';
         el.style.zIndex = 0;
         el.style.opacity = 1;
 
-        half = this._count >> 1;
+        half = this.elNodeLength >> 1;
         for (i = 1; i <= half; ++i) {
             // right side
-            el = this._children[this.wrap(this._center + i)];
-            el.style[this._xform] = alignment +
-                ' translateX(' + (this._shift + (this._dim * i - delta) / 2) + 'px)' +
-                ' translateZ(' + this._dist + 'px)' +
-                ' rotateY(' + this._angle + 'deg)';
+            el = this.elNodes[this.wrap(this.targetCenter + i)];
+            el.style[this.elForm] = alignment +
+                ' translateX(' + (this.elCenterNodeMargin + (this.elSideNodeMargin * i - delta) / 2) + 'px)' +
+                ' translateZ(' + this.elNodeDistance + 'px)' +
+                ' rotateY(' + this.elAngle + 'deg)';
             el.style.zIndex = -i;
             el.style.opacity = (i === half && delta < 0) ? 1 - tween : 1;
 
             // left side
-            el = this._children[this.wrap(this._center - i)];
-            el.style[this._xform] = alignment +
-                ' translateX(' + (-this._shift + (-this._dim * i - delta) / 2) + 'px)' +
-                ' translateZ(' + this._dist + 'px)' +
-                ' rotateY(' + -this._angle + 'deg)';
+            el = this.elNodes[this.wrap(this.targetCenter - i)];
+            el.style[this.elForm] = alignment +
+                ' translateX(' + (-this.elCenterNodeMargin + (-this.elSideNodeMargin * i - delta) / 2) + 'px)' +
+                ' translateZ(' + this.elNodeDistance + 'px)' +
+                ' rotateY(' + -this.elAngle + 'deg)';
             el.style.zIndex = -i;
             el.style.opacity = (i === half && delta > 0) ? 1 - tween : 1;
         }
 
         // center
-        el = this._children[this.wrap(this._center)];
-        el.style[this._xform] = alignment +
+        el = this.elNodes[this.wrap(this.targetCenter)];
+        el.style[this.elForm] = alignment +
             ' translateX(' + (-delta / 2) + 'px)' +
-            ' translateX(' + (dir * this._shift * tween) + 'px)' +
-            ' translateZ(' + (this._dist * tween) + 'px)' +
-            ' rotateY(' + (dir * this._angle * tween) + 'deg)';
+            ' translateX(' + (dir * this.elCenterNodeMargin * tween) + 'px)' +
+            ' translateZ(' + (this.elNodeDistance * tween) + 'px)' +
+            ' rotateY(' + (dir * this.elAngle * tween) + 'deg)';
         el.style.zIndex = 0;
         el.style.opacity = 1;
         
@@ -203,42 +189,41 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
         (function autoScroll(){
             var elapsed, delta;
             
-            if (self._amplitude) {
-                elapsed = Date.now() - self._timestamp;
-                delta = self._amplitude * Math.exp(-elapsed / self._timeConstant);
+            if (self.targetAmplitude) {
+                elapsed = Date.now() - self.targetTimestamp;
+                delta = self.targetAmplitude * Math.exp(-elapsed / self.targetFlowTime);
 
                 if (delta > 4 || delta < -4) {
-                    self.scroll(self._target - delta);
+                    self.scroll(self.targetOffset - delta);
                     requestAnimationFrame(autoScroll);
                 } else {
-                    self.scroll(self._target);
+                    self.scroll(self.targetOffset);
                 }
             }
 
         }());
     }
     private tap(e) {
-        this._pressed = true;
-        this._reference = this.xpos(e);
+        this.isPressed = true;
+        this.targetReference = this.xpos(e);
 
-        this._velocity = 0;
-        this._amplitude = 0;
-        console.log(this._amplitude);
-        this._frame = this._offset;
-        this._timestamp = Date.now();
-        clearInterval(this._ticker);
-        this._ticker = setInterval(()=> {
+        this.targetVelocity = 0;
+        this.targetAmplitude = 0;
+        this.targetFrame = this.elOffset;
+        this.targetTimestamp = Date.now();
+        clearInterval(this.targetTapTicker);
+        this.targetTapTicker = setInterval(()=> {
 
             let now, elapsed, delta, v;
             
             now = Date.now();
-            elapsed = now - this._timestamp;
-            this._timestamp = now;
-            delta = this._offset - this._frame;
-            this._frame = this._offset;
+            elapsed = now - this.targetTimestamp;
+            this.targetTimestamp = now;
+            delta = this.elOffset - this.targetFrame;
+            this.targetFrame = this.elOffset;
 
             v = 1000 * delta / (1 + elapsed);
-            this._velocity = 0.8 * v + 0.2 * this._velocity;
+            this.targetVelocity = 0.8 * v + 0.2 * this.targetVelocity;
 
         }, 100);
 
@@ -248,12 +233,12 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
     }
     private drag(e) {
         var x, delta;
-        if (this._pressed) {
+        if (this.isPressed) {
             x = this.xpos(e);
-            delta = this._reference - x;
+            delta = this.targetReference - x;
             if (delta > 2 || delta < -2) {
-                this._reference = x;
-                this.scroll(this._offset + delta);
+                this.targetReference = x;
+                this.scroll(this.elOffset + delta);
             }
         }
         e.preventDefault();
@@ -261,18 +246,18 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
         return false;
     }
     private release(e) {
-        this._pressed = false;
+        this.isPressed = false;
 
-        clearInterval(this._ticker);
-        this._target = this._offset;
+        clearInterval(this.targetTapTicker);
+        this.targetOffset = this.elOffset;
 
-        if (this._velocity > 10 || this._velocity < -10) {
-            this._amplitude = 0.9 * this._velocity;
-            this._target = this._offset + this._amplitude;
+        if (this.targetVelocity > 10 || this.targetVelocity < -10) {
+            this.targetAmplitude = 0.9 * this.targetVelocity;
+            this.targetOffset = this.elOffset + this.targetAmplitude;
         }
-        this._target = Math.round(this._target / this._dim) * this._dim;
-        this._amplitude = this._target - this._offset;
-        this._timestamp = Date.now();
+        this.targetOffset = Math.round(this.targetOffset / this.elSideNodeMargin) * this.elSideNodeMargin;
+        this.targetAmplitude = this.targetOffset - this.elOffset;
+        this.targetTimestamp = Date.now();
         this.autoScroll();
 
         e.preventDefault();
@@ -289,7 +274,7 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
     }
 
     onMouseMove(e: MouseEvent) : void {
-        if (this._pressed && !this.disabled) {
+        if (this.isPressed && !this.disabled) {
             e.preventDefault();
             
             this.drag(e);
@@ -301,21 +286,11 @@ export class CoverFlow implements OnDestroy, OnInit, OnChanges /* DoCheck */ {
     onMouseUp(e: MouseEvent) : void {
         e.preventDefault();
 
-        if (this._pressed) {            
+        if (this.isPressed) {            
             this.release(e);
         }
     }
-    
-    private markElDimension() : void {
-        if (this.wrapper) {
-            this.elWidth = this.wrapper.style.width;
-            this.elHeight = this.wrapper.style.height;
-        } else {
-            this.elWidth = this.el.nativeElement.style.width;
-            this.elHeight = this.el.nativeElement.style.height;
-        }
-    }
-    
+
 }
 
 @NgModule({
